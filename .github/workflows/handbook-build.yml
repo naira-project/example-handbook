@@ -1,0 +1,45 @@
+# SPDX-FileCopyrightText: 2026 Naira Project Contributors
+# SPDX-License-Identifier: Apache-2.0
+#
+# Builds the handbook image, signs it and pushes it to
+# ghcr.io/naira-project/example-handbook, then verifies the signature.
+# The summary of the run names the digest to put into the Naira values.
+
+name: Handbook Build
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+
+jobs:
+  handbook:
+    name: Build & Publish
+    # reusable-container-build.yml needs all five; a caller that grants fewer fails at startup
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+      artifact-metadata: write
+    # Pin to a release tag or commit SHA once naira-github-workflows releases the handbook workflow
+    uses: naira-project/naira-github-workflows/.github/workflows/reusable-handbook-build.yml@main
+    with:
+      handbook-id: example
+    secrets:
+      registry-password: ${{ secrets.GITHUB_TOKEN }}
+
+  verify:
+    name: Verify
+    needs: handbook
+    permissions:
+      contents: read
+      attestations: read
+      packages: read
+    uses: naira-project/naira-github-workflows/.github/workflows/reusable-container-verify.yml@main
+    with:
+      image-ref: ${{ needs.handbook.outputs.image-ref }}
+      source-digest: ${{ github.sha }}
+    secrets:
+      registry-password: ${{ secrets.GITHUB_TOKEN }}
